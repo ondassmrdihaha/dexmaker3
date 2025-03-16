@@ -2,21 +2,23 @@
 
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useEffect, useState } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { Connection, clusterApiUrl, PublicKey } from "@solana/web3.js";
+// Pull in both useWallet and useConnection from wallet-adapter-react
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { PublicKey } from "@solana/web3.js";
 
 export default function Home() {
+  // Access the connection object from the provider
+  const { connection } = useConnection();
   const { publicKey } = useWallet();
-  const [balance, setBalance] = useState(null);
-  const connection = new Connection(clusterApiUrl("devnet"));
 
-  // Function to fetch wallet balance
+  const [balance, setBalance] = useState(null);
+
+  // Function to fetch the wallet balance
   const fetchBalance = async () => {
     if (!publicKey) {
       console.warn("No wallet connected");
       return;
     }
-
     try {
       console.log("Fetching balance for:", publicKey.toBase58());
       const balanceLamports = await connection.getBalance(new PublicKey(publicKey));
@@ -38,8 +40,8 @@ export default function Home() {
   // Re-fetch balance every 5 seconds when the wallet is connected
   useEffect(() => {
     if (!publicKey) return;
-    const interval = setInterval(fetchBalance, 5000); // Updates every 5 seconds
-    return () => clearInterval(interval); // Cleanup when the component unmounts
+    const interval = setInterval(fetchBalance, 5000);
+    return () => clearInterval(interval);
   }, [publicKey]);
 
   return (
@@ -54,13 +56,11 @@ export default function Home() {
           </div>
         )}
       </div>
-
       <h1>Welcome to My Memecoin Project! 🚀</h1>
     </div>
   );
 }
 
-// Styles
 const styles = {
   container: {
     fontFamily: "Arial, sans-serif",
