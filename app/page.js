@@ -10,31 +10,36 @@ export default function Home() {
   const [balance, setBalance] = useState(null);
   const connection = new Connection(clusterApiUrl("devnet"));
 
-  // Function to fetch balance
-  async function fetchBalance() {
-    if (publicKey) {
-      try {
-        const balanceLamports = await connection.getBalance(new PublicKey(publicKey));
-        setBalance(balanceLamports / 1e9); // Convert lamports to SOL
-      } catch (error) {
-        console.error("Error fetching balance:", error);
-        setBalance(null);
-      }
+  // Function to fetch wallet balance
+  const fetchBalance = async () => {
+    if (!publicKey) {
+      console.warn("No wallet connected");
+      return;
     }
-  }
 
-  // Fetch balance when wallet connects
+    try {
+      console.log("Fetching balance for:", publicKey.toBase58());
+      const balanceLamports = await connection.getBalance(new PublicKey(publicKey));
+      console.log("Balance in lamports:", balanceLamports);
+      setBalance(balanceLamports / 1e9); // Convert lamports to SOL
+    } catch (error) {
+      console.error("Error fetching balance:", error);
+      setBalance(null);
+    }
+  };
+
+  // Fetch balance when the publicKey changes or on initial load
   useEffect(() => {
     if (publicKey) {
       fetchBalance();
     }
   }, [publicKey]);
 
-  // Update balance every 5 seconds when connected
+  // Re-fetch balance every 5 seconds when the wallet is connected
   useEffect(() => {
     if (!publicKey) return;
-    const interval = setInterval(fetchBalance, 5000);
-    return () => clearInterval(interval); // Cleanup interval
+    const interval = setInterval(fetchBalance, 5000); // Updates every 5 seconds
+    return () => clearInterval(interval); // Cleanup when the component unmounts
   }, [publicKey]);
 
   return (
@@ -43,7 +48,9 @@ export default function Home() {
         <WalletMultiButton />
         {publicKey && (
           <div style={styles.balanceBox}>
-            <span>Balance: {balance !== null ? `${balance.toFixed(4)} SOL` : "Loading..."}</span>
+            <span>
+              Balance: {balance !== null ? `${balance.toFixed(4)} SOL` : "Loading..."}
+            </span>
           </div>
         )}
       </div>
