@@ -1,43 +1,35 @@
 "use client";
-
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useEffect, useState } from "react";
-// Pull in both useWallet and useConnection from wallet-adapter-react
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 
 export default function Home() {
-  // Access the connection object from the provider
+  // useConnection gives you the same Connection from providers.js
   const { connection } = useConnection();
   const { publicKey } = useWallet();
 
   const [balance, setBalance] = useState(null);
 
-  // Function to fetch the wallet balance
   const fetchBalance = async () => {
-    if (!publicKey) {
-      console.warn("No wallet connected");
-      return;
-    }
+    if (!publicKey) return;
+
     try {
       console.log("Fetching balance for:", publicKey.toBase58());
       const balanceLamports = await connection.getBalance(new PublicKey(publicKey));
-      console.log("Balance in lamports:", balanceLamports);
-      setBalance(balanceLamports / 1e9); // Convert lamports to SOL
+      setBalance(balanceLamports / 1e9); // lamports -> SOL
     } catch (error) {
       console.error("Error fetching balance:", error);
       setBalance(null);
     }
   };
 
-  // Fetch balance when the publicKey changes or on initial load
   useEffect(() => {
     if (publicKey) {
       fetchBalance();
     }
   }, [publicKey]);
 
-  // Re-fetch balance every 5 seconds when the wallet is connected
   useEffect(() => {
     if (!publicKey) return;
     const interval = setInterval(fetchBalance, 5000);
@@ -56,30 +48,13 @@ export default function Home() {
           </div>
         )}
       </div>
-      <h1>Welcome to My Memecoin Project! 🚀</h1>
+      <h1>Welcome to My Memecoin Project!1 🚀</h1>
     </div>
   );
 }
 
 const styles = {
-  container: {
-    fontFamily: "Arial, sans-serif",
-    padding: "20px",
-    textAlign: "center",
-  },
-  topRight: {
-    position: "absolute",
-    top: "20px",
-    right: "20px",
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-  },
-  balanceBox: {
-    backgroundColor: "#007bff",
-    color: "white",
-    padding: "8px",
-    borderRadius: "5px",
-    fontSize: "14px",
-  },
+  container: { padding: "20px", textAlign: "center" },
+  topRight: { position: "absolute", top: "20px", right: "20px", display: "flex", gap: "10px" },
+  balanceBox: { backgroundColor: "#007bff", color: "white", padding: "8px", borderRadius: "5px" },
 };
