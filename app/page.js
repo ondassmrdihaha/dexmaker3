@@ -2,28 +2,54 @@
 
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useEffect, useState } from "react";
-import { useWallet, useConnection } from "@solana/wallet-adapter-react";
-import { PublicKey } from "@solana/web3.js";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { Connection, clusterApiUrl, PublicKey } from "@solana/web3.js";
 
 export default function Home() {
-  // Wallet and balance functionality
-  const { connection } = useConnection();
   const { publicKey } = useWallet();
   const [balance, setBalance] = useState(null);
+  const [tokenInfo, setTokenInfo] = useState(null);
+  const [tokenAddress, setTokenAddress] = useState("");
+  const connection = new Connection(clusterApiUrl("mainnet-beta"));
 
-  const fetchBalance = async () => {
-    if (!publicKey) return;
+  // Function to fetch balance
+  async function fetchBalance() {
+    if (publicKey) {
+      try {
+        const balanceLamports = await connection.getBalance(new PublicKey(publicKey));
+        setBalance(balanceLamports / 1e9);
+      } catch (error) {
+        console.error("Error fetching balance:", error);
+        setBalance(null);
+      }
+    }
+  }
+
+  // Function to fetch token info
+  async function fetchTokenInfo(address) {
     try {
-      const balanceLamports = await connection.getBalance(new PublicKey(publicKey));
-      setBalance(balanceLamports / 1e9);
+      const response = await fetch(`/api/tokeninfo?address=${address}`);
+      if (!response.ok) throw new Error('Failed to fetch token info');
+      const data = await response.json();
+      setTokenInfo(data);
     } catch (error) {
-      console.error("Error fetching balance:", error);
-      setBalance(null);
+      console.error("Error fetching token info:", error);
+      setTokenInfo(null);
+    }
+  }
+
+  // Handle token address input
+  const handleAddressSubmit = (e) => {
+    e.preventDefault();
+    if (tokenAddress) {
+      fetchTokenInfo(tokenAddress);
     }
   };
 
   useEffect(() => {
-    if (publicKey) fetchBalance();
+    if (publicKey) {
+      fetchBalance();
+    }
   }, [publicKey]);
 
   useEffect(() => {
@@ -32,118 +58,37 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [publicKey]);
 
-  // Token info functionality
-  const [tokenAddress, setTokenAddress] = useState("");
-  const [tokenData, setTokenData] = useState(null);
-  const [loadingToken, setLoadingToken] = useState(false);
-  const [tokenError, setTokenError] = useState(null);
-
-  const fetchTokenData = async (address) => {
-    setLoadingToken(true);
-    setTokenError(null);
-    setTokenData(null);
-    try {
-      const res = await fetch(`/api/tokeninfo?address=${address}`);
-      if (!res.ok) {
-        throw new Error("Failed to fetch token info");
-      }
-      const data = await res.json();
-      setTokenData(data);
-    } catch (err) {
-      console.error(err);
-      setTokenError(err.message);
-    }
-    setLoadingToken(false);
-  };
-
-  const handleTokenSubmit = (e) => {
-    e.preventDefault();
-    if (tokenAddress.trim()) {
-      fetchTokenData(tokenAddress.trim());
-    }
-  };
-
   return (
     <div style={styles.container}>
-      {/* Wallet Connect & Live Balance */}
       <div style={styles.topRight}>
         <WalletMultiButton />
         {publicKey && (
           <div style={styles.balanceBox}>
-            <span>
-              Balance: {balance !== null ? `${balance.toFixed(4)} SOL` : "Loading..."}
-            </span>
+            <span>Balance: {balance !== null ? `${balance.toFixed(4)} SOL` : "Loading..."}</span>
           </div>
         )}
       </div>
 
-      <h1>Welcome to My Memecoin Project! 🚀</h1>
+      <h1 style={styles.title}>Welcome to My Memecoin Project! 🚀</h1>
       
-      {/* Token Info Window */}
-      <div style={styles.tokenInfoContainer}>
-        <h2>Paste Your Token Contract Address</h2>
-        <form onSubmit={handleTokenSubmit} style={styles.form}>
+      <div style={styles.tokenSection}>
+        <form onSubmit={handleAddressSubmit} style={styles.form}>
           <input
             type="text"
-            placeholder="Enter token contract address..."
             value={tokenAddress}
             onChange={(e) => setTokenAddress(e.target.value)}
+            placeholder="Enter token contract address"
             style={styles.input}
           />
           <button type="submit" style={styles.button}>
-            Get Token Info
+            Search Token
           </button>
         </form>
-        {loadingToken && <p>Loading token info...</p>}
-        {tokenError && <p style={{ color: "red" }}>Error: {tokenError}</p>}
-        {tokenData && (
-          <div style={styles.tokenBox}>
-            <h3>
-              {tokenData.name} ({tokenData.ticker})
-            </h3>
-            {tokenData.image && (
-              <img
-                src={tokenData.image}
-                alt={tokenData.name}
-                style={styles.image}
-              />
-            )}
-            <p>Holders: {tokenData.holderInfo?.holders}</p>
-            <p>
-              Market Cap:{" "}
-              {tokenData.marketCap ? `$${tokenData.marketCap.toLocaleString()}` : "N/A"}
-            </p>
-            {tokenData.socialLinks && (
-              <div style={styles.socialLinks}>
-                {tokenData.socialLinks.website && (
-                  <a
-                    href={tokenData.socialLinks.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Website
-                  </a>
-                )}
-                {tokenData.socialLinks.twitter && (
-                  <a
-                    href={tokenData.socialLinks.twitter}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Twitter
-                  </a>
-                )}
-                {tokenData.socialLinks.telegram && (
-                  <a
-                    href={tokenData.socialLinks.telegram}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Telegram
-                  </a>
-                )}
-              </div>
-            )}
+
+        {tokenInfo && (
+          <div style={styles.tokenInfo}>
+            <h2>Token Information</h2>
+            <pre>{JSON.stringify(tokenInfo, null, 2)}</pre>
           </div>
         )}
       </div>
@@ -151,6 +96,7 @@ export default function Home() {
   );
 }
 
+// Styles
 const styles = {
   container: {
     fontFamily: "Arial, sans-serif",
@@ -172,41 +118,39 @@ const styles = {
     borderRadius: "5px",
     fontSize: "14px",
   },
-  tokenInfoContainer: {
-    marginTop: "2rem",
-    padding: "1rem",
-    border: "1px solid #ccc",
-    borderRadius: "8px",
-    maxWidth: "500px",
-    marginLeft: "auto",
-    marginRight: "auto",
+  title: {
+    marginBottom: "2rem",
+  },
+  tokenSection: {
+    maxWidth: "600px",
+    margin: "0 auto",
+    padding: "20px",
   },
   form: {
     display: "flex",
-    gap: "0.5rem",
-    marginBottom: "1rem",
+    gap: "10px",
+    marginBottom: "20px",
+    justifyContent: "center",
   },
   input: {
-    flex: 1,
-    padding: "0.5rem",
+    padding: "10px",
+    borderRadius: "5px",
+    border: "1px solid #ccc",
+    width: "300px",
   },
   button: {
-    padding: "0.5rem 1rem",
+    padding: "10px 20px",
+    backgroundColor: "#007bff",
+    color: "white",
+    border: "none",
+    borderRadius: "5px",
+    cursor: "pointer",
   },
-  tokenBox: {
-    marginTop: "1rem",
-  },
-  image: {
-    width: "100px",
-    height: "100px",
-    objectFit: "cover",
-    borderRadius: "50%",
-    margin: "0.5rem 0",
-  },
-  socialLinks: {
-    display: "flex",
-    justifyContent: "center",
-    gap: "1rem",
-    marginTop: "0.5rem",
+  tokenInfo: {
+    textAlign: "left",
+    backgroundColor: "#f5f5f5",
+    padding: "20px",
+    borderRadius: "5px",
+    overflowX: "auto",
   },
 };
