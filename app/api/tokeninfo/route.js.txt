@@ -1,0 +1,27 @@
+// app/api/tokeninfo/route.js
+import { NextResponse } from "next/server";
+
+export async function GET(request) {
+  // Extract the "address" query param from the URL
+  const { searchParams } = new URL(request.url);
+  const address = searchParams.get("address");
+
+  if (!address) {
+    return NextResponse.json({ error: "Missing token address" }, { status: 400 });
+  }
+
+  try {
+    // Fetch data from Dexscreener using the address
+    const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${address}`);
+    if (!response.ok) {
+      throw new Error("Error fetching data from Dexscreener");
+    }
+    const data = await response.json();
+
+    // Return the data as JSON
+    return NextResponse.json(data, { status: 200 });
+  } catch (error) {
+    console.error("Dexscreener API error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
