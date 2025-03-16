@@ -3,34 +3,48 @@
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useEffect, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { Connection, clusterApiUrl, PublicKey } from "@solana/web3.js";
+import { Connection, clusterApiUrl, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 
 export default function Home() {
   const { publicKey } = useWallet();
   const [balance, setBalance] = useState(null);
   const [tokenInfo, setTokenInfo] = useState(null);
   const [tokenAddress, setTokenAddress] = useState("");
-  const connection = new Connection(clusterApiUrl("mainnet-beta"));
+  const connection = new Connection(clusterApiUrl("mainnet-beta"), 'confirmed');
 
   // Function to fetch balance
   async function fetchBalance() {
-    if (publicKey) {
-      try {
-        const balanceLamports = await connection.getBalance(new PublicKey(publicKey));
-        setBalance(balanceLamports / 1e9);
-      } catch (error) {
-        console.error("Error fetching balance:", error);
-        setBalance(null);
-      }
+    if (!publicKey) {
+      console.log('No wallet connected');
+      return;
+    }
+
+    try {
+      console.log('Fetching balance for address:', publicKey.toString());
+      const balanceLamports = await connection.getBalance(publicKey, 'confirmed');
+      console.log('Balance in lamports:', balanceLamports);
+      const balanceSOL = balanceLamports / LAMPORTS_PER_SOL;
+      console.log('Balance in SOL:', balanceSOL);
+      setBalance(balanceSOL);
+    } catch (error) {
+      console.error("Error fetching balance:", error);
+      setBalance(null);
     }
   }
 
   // Function to fetch token info
   async function fetchTokenInfo(address) {
     try {
+      console.log('Fetching token info for address:', address);
       const response = await fetch(`/api/tokeninfo?address=${address}`);
-      if (!response.ok) throw new Error('Failed to fetch token info');
+      console.log('API Response status:', response.status);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error:', errorText);
+        throw new Error('Failed to fetch token info');
+      }
       const data = await response.json();
+      console.log('Token data received:', data);
       setTokenInfo(data);
     } catch (error) {
       console.error("Error fetching token info:", error);
@@ -41,6 +55,7 @@ export default function Home() {
   // Handle token address input
   const handleAddressSubmit = (e) => {
     e.preventDefault();
+    console.log('Form submitted with address:', tokenAddress);
     if (tokenAddress) {
       fetchTokenInfo(tokenAddress);
     }
